@@ -205,7 +205,7 @@ choose_tile = function (tile) {
     if (lock === false & decided === false) {
         lock = true;
         decided = true;
-        $("#instructions").html("<p>Your decision is being saved, please wait...<br><br></p>");
+        $("#instructions").html("<p>Your decision is being saved, please wait...</p>");
         bandit_memory.push(current_bandit);
         reqwest({
             url: "/info/" + my_node_id,

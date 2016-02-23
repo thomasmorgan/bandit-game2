@@ -194,7 +194,7 @@ class BanditGame(Experiment):
 
         total_trials = self.n_trials * self.experiment_repeats
 
-        bonus = (total_score/(1.0*total_trials))/5.0
+        bonus = ((total_score/(1.0*total_trials))-1)/5.0
 
         bonus = max(min(bonus, 1.0), 0.0)*self.bonus_payment
 
