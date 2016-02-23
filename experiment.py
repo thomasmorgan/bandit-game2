@@ -171,23 +171,22 @@ class BanditGame(Experiment):
         bandits = Bandit.query.all()
         node_ids = [n.id for n in nodes]
         pulls = Pull.query.filter(Pull.origin_id.in_(node_ids)).all()
-        curiosity_genes = CuriosityGene.query.filter(Gene.origin_id.in_(node_ids)).all()
 
         for node in nodes:
             # for every node get its curiosity and decisions
-            curiosity = int([g for g in curiosity_genes if g.origin_id == node.id][0].contents)
             decisions = [p for p in pulls if p.origin_id == node.id and p.check == "false"]
 
             for decision in decisions:
                 # for each decision, get the bandit and the right answer
                 bandit = [b for b in bandits if b.network_id == node.network_id and b.bandit_id == decision.bandit_id][0]
                 right_answer = bandit.treasure_tile
+                num_checks = len([p for p in pulls if p.check == "true" and p.origin_id == decision.origin_id and p.trial == decision.trial])
 
                 # if they get it right score = potential score
                 if right_answer == int(decision.contents):
-                    score = self.n_pulls - curiosity
+                    score = self.n_pulls - num_checks
                 else:
-                    score = 0
+                    score = 0 - num_checks
 
                 # save this info the the decision and update the running totals
                 decision.payoff = score
