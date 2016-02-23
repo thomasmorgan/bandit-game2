@@ -146,6 +146,7 @@ prepare_for_trial = function() {
     }
     $("#mini_title").html("<p>You are looking for treasure in <b>" + current_bandit_name + "</b></p>");
     $("#instructions").html("<p><font color='green'><b>You can check " + my_curiosity + " locations</b></font></p>");
+    $("#ready_button").prop("disabled", false);
 };
 
 prepare_trial_info_text = function() {
@@ -187,6 +188,7 @@ check_tile = function (tile) {
 
 // prepare the tiles for the final decision
 prepare_for_decision = function () {
+    $("#ready_button").prop("disabled", true);
     decided = false;
     $("#instructions").html("<p><b>Please make your final choice.</b></p>");
     lock = true;
