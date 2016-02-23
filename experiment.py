@@ -134,15 +134,13 @@ class BanditGame(Experiment):
             for node in nodes:
                 assert (len([d for d in decisions if d.origin_id == node.id and d.check == "false"])) == self.n_trials
 
-            # 0 checks if remembered, otherwise "curiosity" checks
+            # o <= checks <= curiosity
             for node in nodes:
+                my_checks = [d for d in decisions if d.check == "true" and d.origin_id == node.id]
                 curiosity = int([g for g in genes if g.origin_id == node.id and g.type == "curiosity_gene"][0].contents)
-                final_decisions = [d for d in decisions if d.origin_id == node.id and d.check == "false"]
-                for decision in final_decisions:
-                    if decision.remembered == "true":
-                        assert (len([d for d in decisions if d.origin_id == node.id and d.check == "true" and d.bandit_id == decision.bandit_id and d.trial == decision.trial])) == 0
-                    else:
-                        assert (len([d for d in decisions if d.origin_id == node.id and d.check == "true" and d.bandit_id == decision.bandit_id and d.trial == decision.trial])) == curiosity
+                for t in range(self.n_trials):
+                    assert len([d for d in my_checks if d.trial == t]) >= 0
+                    assert len([d for d in my_checks if d.trial == t]) <= curiosity
 
             # all decisions have an int payoff
             for d in decisions:
