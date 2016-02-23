@@ -188,14 +188,14 @@ check_tile = function (tile) {
 // prepare the tiles for the final decision
 prepare_for_decision = function () {
     decided = false;
-    if (remember_bandit === false) {
-        $("#instructions").html("<p><b>Please make your final choice.</b></p>");
-    }
+    $("#instructions").html("<p><b>Please make your final choice.</b></p>");
+    lock = true;
     for (i = 0; i < num_tiles; i++) {
         name_of_tile = "#tile_" + (i+1);
         name_of_image = '<img src="/static/images/locations/' + current_bandit_name + '/' + (i+1) + '.png" onClick="choose_tile(' + (i+1) + ')"/>';
         $(name_of_tile).html(name_of_image);
     }
+    lock = false;
 };
 
 // commit to a particular tile 
