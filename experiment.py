@@ -69,8 +69,8 @@ class BanditGame(Experiment):
         # genetic parameters
         self.allow_memory = True
         self.allow_curiosity = True
-        self.seed_memory = 1
-        self.seed_curiosity = 1
+        self.seed_memory = 5
+        self.seed_curiosity = 5
 
         if not self.networks():
             self.setup()
