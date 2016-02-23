@@ -427,20 +427,18 @@ class BanditAgent(Agent):
         exp = BanditGame(db.session)
 
         my_decisions = Pull.query.filter_by(origin_id=self.id, check="false").all()
+        my_checks = Pull.query.filter_by(origin_id=self.id, check="true").all()
         bandits = Bandit.query.filter_by(network_id=self.network_id).all()
 
         pulls = exp.n_pulls
-        curiosity = int(self.infos(type=CuriosityGene)[0].contents)
         memory = int(self.infos(type=MemoryGene)[0].contents)
 
-        fitness = exp.f_min - memory*exp.memory_cost
+        fitness = exp.f_min - memory*exp.memory_cost - len(my_checks)
 
         for d in my_decisions:
             bandit = [b for b in bandits if b.bandit_id == d.bandit_id][0]
             if int(d.contents) == bandit.treasure_tile:
                 fitness += pulls
-            if d.remembered == "false":
-                fitness -= curiosity
 
         fitness = max([fitness, 0.0001])
         fitness = ((1.0*fitness)*exp.f_scale_factor)**exp.f_power_factor
