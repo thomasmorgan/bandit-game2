@@ -84,8 +84,8 @@ class BanditGame(Experiment):
             for bandit in range(self.n_bandits):
                 b = Bandit(network=net)
                 b.bandit_id = bandit
-                b.num_tiles = self.n_options
-                b.treasure_tile = int(random.random()*self.n_options) + 1
+                b.num_arms = self.n_options
+                b.good_arm = int(random.random()*self.n_options) + 1
 
     def recruit(self):
         self.log("running recruit")
@@ -179,7 +179,7 @@ class BanditGame(Experiment):
             for decision in decisions:
                 # for each decision, get the bandit and the right answer
                 bandit = [b for b in bandits if b.network_id == node.network_id and b.bandit_id == decision.bandit_id][0]
-                right_answer = bandit.treasure_tile
+                right_answer = bandit.good_arm
                 num_checks = len([p for p in pulls if p.check == "true" and p.origin_id == decision.origin_id and p.trial == decision.trial])
 
                 # if they get it right score = potential score
@@ -189,7 +189,6 @@ class BanditGame(Experiment):
                     score = 0 - num_checks
 
                 # save this info the the decision and update the running totals
-                decision.payoff = score
                 total_score += score
 
         total_trials = self.n_trials * self.experiment_repeats
@@ -217,7 +216,7 @@ class BanditGame(Experiment):
 
         for d in final_decisions:
             if d.remembered == "false":
-                right_answer = [b for b in bandits if b.network_id == d.network_id and b.bandit_id == d.bandit_id][0].treasure_tile
+                right_answer = [b for b in bandits if b.network_id == d.network_id and b.bandit_id == d.bandit_id][0].good_arm
                 checked_tiles = [int(c.contents) for c in checks if c.network_id == d.network_id and c.trial == d.trial]
                 if right_answer in checked_tiles:
                     times_found_treasure += 1
@@ -265,27 +264,27 @@ class Bandit(Source):
     __mapper_args__ = {"polymorphic_identity": "bandit"}
 
     @hybrid_property
-    def num_tiles(self):
+    def num_arms(self):
         return int(self.property1)
 
-    @num_tiles.setter
-    def num_tiles(self, num_tiles):
-        self.property1 = repr(num_tiles)
+    @num_arms.setter
+    def num_arms(self, num_arms):
+        self.property1 = repr(num_arms)
 
-    @num_tiles.expression
-    def num_tiles(self):
+    @num_arms.expression
+    def num_arms(self):
         return cast(self.property1, Integer)
 
     @hybrid_property
-    def treasure_tile(self):
+    def good_arm(self):
         return int(self.property2)
 
-    @treasure_tile.setter
-    def treasure_tile(self, treasure_tile):
-        self.property2 = repr(treasure_tile)
+    @good_arm.setter
+    def good_arm(self, good_arm):
+        self.property2 = repr(good_arm)
 
-    @treasure_tile.expression
-    def treasure_tile(self):
+    @good_arm.expression
+    def good_arm(self):
         return cast(self.property2, Integer)
 
     @hybrid_property
@@ -375,15 +374,15 @@ class Pull(Info):
         return self.property3
 
     @hybrid_property
-    def payoff(self):
+    def tile(self):
         return int(self.property4)
 
-    @payoff.setter
-    def payoff(self, payoff):
-        self.property4 = repr(payoff)
+    @tile.setter
+    def tile(self, tile):
+        self.property4 = repr(tile)
 
-    @payoff.expression
-    def payoff(self):
+    @tile.expression
+    def tile(self):
         return cast(self.property4, Integer)
 
     @hybrid_property
@@ -434,7 +433,7 @@ class BanditAgent(Agent):
 
         for d in my_decisions:
             bandit = [b for b in bandits if b.bandit_id == d.bandit_id][0]
-            if int(d.contents) == bandit.treasure_tile:
+            if int(d.contents) == bandit.good_arm:
                 fitness += pulls
 
         fitness = max([fitness, 0.0001])
@@ -489,14 +488,14 @@ def get_num_bandits():
 @extra_routes.route("/num_arms/<int:network_id>/<int:bandit_id>", methods=["GET"])
 def get_num_arms(network_id, bandit_id):
     bandit = Bandit.query.filter_by(network_id=network_id, bandit_id=bandit_id).one()
-    data = {"status": "success", "num_tiles": bandit.num_tiles}
+    data = {"status": "success", "num_arms": bandit.num_arms}
     return Response(dumps(data), status=200, mimetype='application/json')
 
 
-@extra_routes.route("/treasure_tile/<int:network_id>/<int:bandit_id>", methods=["GET"])
-def get_treasure_tile(network_id, bandit_id):
+@extra_routes.route("/good_arm/<int:network_id>/<int:bandit_id>", methods=["GET"])
+def good_arm(network_id, bandit_id):
     bandit = Bandit.query.filter_by(network_id=network_id, bandit_id=bandit_id).one()
-    data = {"status": "success", "treasure_tile": bandit.treasure_tile}
+    data = {"status": "success", "good_arm": bandit.good_arm}
     return Response(dumps(data), status=200, mimetype='application/json')
 
 

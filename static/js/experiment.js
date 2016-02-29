@@ -7,6 +7,7 @@ var number_of_rounds;
 var available_bandit_names = ["Afghanistan", "Albania", "Argentina", "Australia", "Austria", "Bangladesh", "Belgium", "Botswana", "Brasil", "Bulgaria", "Burundi", "Canada", "Chad", "Chile", "China", "Colombia", "Costa Rica", "Croatia", "Denmark", "Ecuador", "Egypt", "England", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Germany", "Ghana", "Greece", "Greenland", "Guatemala", "Holland", "India", "Iran", "Ireland", "Italy", "Japan", "Laos", "Libya", "Madagascar", "Mali", "Mexico", "Mongolia", "Morocco", "Mozambique", "Myanmar", "Nepal", "New Zealand", "Nigeria", "Norway", "Pakistan", "Papua New Guinea", "Poland", "Portugal", "Romania", "Russia", "Scotland", "Senegal", "Sierra Leone", "South Korea", "Spain", "Sri Lanka", "Sweden", "Thailand", "The United States", "Tonga", "Tunisia", "Turkey", "Turkmenistan", "Ukraine", "Wales", "Yemen"];
 var bandit_names;
 var lock = false;
+bandit_mapping = [];
 
 // get all the details to correctly present the trial number bar
 get_num_trials = function() {
@@ -93,7 +94,11 @@ get_num_bandits = function() {
 pick_a_bandit = function () {
     current_bandit = Math.floor(Math.random()*num_bandits);
 
-    remember_bandit = ($.inArray(current_bandit, bandit_memory.slice(bandit_memory.length - my_memory, bandit_memory.length)) > (-1));
+    if (my_memory > 0) {
+        remember_bandit = $.inArray(current_bandit, bandit_memory.slice(-my_memory)) > -1;
+    } else {
+        remember_bandit = false;
+    }
 
     if (remember_bandit === false) {
         index = Math.floor(Math.random()*available_bandit_names.length);
@@ -104,30 +109,33 @@ pick_a_bandit = function () {
     current_bandit_name = bandit_names[current_bandit];
     name_of_image = '<img src="/static/images/locations/' + current_bandit_name + '/flag.png"/>';
     $("#flag_div").html(name_of_image);
-    get_num_tiles();
+    get_num_arms();
 };
 
 // how many arms does my bandit have?
-get_num_tiles = function() {
+get_num_arms = function() {
     reqwest({
         url: "/num_arms/" + my_network_id + "/" + current_bandit,
         method: 'get',
         type: 'json',
         success: function (resp) {
-            num_tiles = resp.num_tiles;
-            get_treasure_tile();
+            num_arms = resp.num_arms;
+            if (remember_bandit === false) {
+                bandit_mapping[current_bandit] = new_mapping(num_arms);
+            }
+            get_good_arm();
         }
     });
 };
 
 // which is the good arm?
-get_treasure_tile = function() {
+get_good_arm = function() {
     reqwest({
-        url: "/treasure_tile/" + my_network_id + "/" + current_bandit,
+        url: "/good_arm/" + my_network_id + "/" + current_bandit,
         method: 'get',
         type: 'json',
         success: function (resp) {
-            current_treasure_tile = resp.treasure_tile;
+            good_arm = resp.good_arm;
             prepare_for_trial();
         }
     });
@@ -139,7 +147,7 @@ prepare_for_trial = function() {
     prepare_trial_info_text();
 
     tiles_checked = 0;
-    for (i = 0; i < num_tiles; i++) {
+    for (i = 0; i < num_arms; i++) {
         name_of_tile = "#tile_" + (i+1);
         name_of_image = '<img src="/static/images/locations/' + current_bandit_name + '/' + (i+1) + '.png" onClick="check_tile(' + (i+1) + ')"/>';
         $(name_of_tile).html(name_of_image);
@@ -161,27 +169,14 @@ check_tile = function (tile) {
     if (lock === false & tiles_checked < my_curiosity) {
         lock = true;
         tiles_checked = tiles_checked + 1;
-        reqwest({
-            url: "/info/" + my_node_id,
-            method: 'post',
-            type: 'json',
-            data: {
-                contents: tile,
-                info_type: "Pull",
-                property1: true, // check
-                property2: current_bandit, // bandit_id
-                property3: remember_bandit, // remembered
-                property5: trial_in_this_network
-            },
-        });
+        save_pull(tile, true);
         name_of_tile = "#tile_" + tile;
-        if (tile == current_treasure_tile) {
+        if (bandit_mapping[current_bandit][tile-1] == good_arm) {
             name_of_image = '<img src="/static/images/treasure.png"/>';
-            $(name_of_tile).html(name_of_image);
         } else {
             name_of_image = '<img src="/static/images/no.png"/>';
-            $(name_of_tile).html(name_of_image);
         }
+        $(name_of_tile).html(name_of_image);
         lock = false;
     }
 };
@@ -192,7 +187,7 @@ prepare_for_decision = function () {
     decided = false;
     $("#instructions").html("<p><b>Please make your final choice.</b></p>");
     lock = true;
-    for (i = 0; i < num_tiles; i++) {
+    for (i = 0; i < num_arms; i++) {
         name_of_tile = "#tile_" + (i+1);
         name_of_image = '<img src="/static/images/locations/' + current_bandit_name + '/' + (i+1) + '.png" onClick="choose_tile(' + (i+1) + ')"/>';
         $(name_of_tile).html(name_of_image);
@@ -207,19 +202,7 @@ choose_tile = function (tile) {
         decided = true;
         $("#instructions").html("<p>Your decision is being saved, please wait...</p>");
         bandit_memory.push(current_bandit);
-        reqwest({
-            url: "/info/" + my_node_id,
-            method: 'post',
-            type: 'json',
-            data: {
-                contents: tile,
-                info_type: "Pull",
-                property1: false, // check
-                property2: current_bandit, // bandit_id
-                property3: remember_bandit, // remembered
-                property5: trial_in_this_network
-            },
-        });
+        save_pull(tile, false);
         name_of_tile = "#tile_" + tile;
         name_of_image = '<img src="/static/images/dot.png"/>';
         $(name_of_tile).html(name_of_image);
@@ -228,6 +211,23 @@ choose_tile = function (tile) {
         }, 800);
         lock = false;
     }
+};
+
+save_pull = function (tile, check) {
+    reqwest({
+        url: "/info/" + my_node_id,
+        method: 'post',
+        type: 'json',
+        data: {
+            contents: bandit_mapping[current_bandit][tile-1],
+            info_type: "Pull",
+            property1: check, // check
+            property2: current_bandit, // bandit_id
+            property3: remember_bandit, // remembered
+            property4: tile,
+            property5: trial_in_this_network
+        },
+    });
 };
 
 advance_to_next_trial = function () {
@@ -268,4 +268,19 @@ show_warning = function () {
         $("#warning_div").hide();
         $("#table_div").show();
     }, 3500);
+};
+
+new_mapping = function (max) {
+    return shuffle(Array.apply(null, Array(max)).map(function (_, i) {return i+1;}));
+};
+
+shuffle = function(a) {
+    var j, x, i;
+    for (i = a.length; i; i -= 1) {
+        j = Math.floor(Math.random() * i);
+        x = a[i - 1];
+        a[i - 1] = a[j];
+        a[j] = x;
+    }
+    return a;
 };
