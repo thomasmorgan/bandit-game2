@@ -122,6 +122,12 @@ get_num_arms = function() {
             num_arms = resp.num_arms;
             if (remember_bandit === false) {
                 bandit_mapping[current_bandit] = new_mapping(num_arms);
+            } else {
+                trials_since_last_visit = my_memory - bandit_memory.slice(-my_memory).lastIndexOf(current_bandit);
+                p_change = Math.pow(0.25, trials_since_last_visit);
+                if (Math.random() < p_change) {
+                    bandit_mapping[current_bandit] = new_mapping(num_arms);
+                }
             }
             get_good_arm();
         }
