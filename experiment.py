@@ -30,8 +30,8 @@ class BanditGame(Experiment):
         self.experiment_repeats = 1
         self.practice_repeats = 0
         self.agent = BanditAgent
-        self.generation_size = 5
-        self.generations = 1
+        self.generation_size = 40
+        self.generations = 40
         self.network = lambda: BanditGenerational(generations=self.generations,
                                                   generation_size=self.generation_size,
                                                   initial_source=True)
@@ -57,6 +57,9 @@ class BanditGame(Experiment):
 
         # how many times you can pull the arms
         self.n_pulls = 10
+
+        # the payoff from getting it right
+        self.payoff = 10
 
         # how much each unit of memory costs fitness
         self.memory_cost = 2
@@ -426,17 +429,14 @@ class BanditAgent(Agent):
         my_checks = Pull.query.filter_by(origin_id=self.id, check="true").all()
         bandits = Bandit.query.filter_by(network_id=self.network_id).all()
 
-        pulls = exp.n_pulls
+        payoff = exp.payoff
         memory = int(self.infos(type=MemoryGene)[0].contents)
 
-        fitness = exp.f_min - memory*exp.memory_cost - len(my_checks)
+        correct_decisions = [d for d in my_decisions if [b for b in bandits if b.bandit_id == d.bandit_id][0].good_arm == int(d.contents)]
 
-        for d in my_decisions:
-            bandit = [b for b in bandits if b.bandit_id == d.bandit_id][0]
-            if int(d.contents) == bandit.good_arm:
-                fitness += pulls
+        fitness = exp.f_min + len(correct_decisions)*payoff - memory*exp.memory_cost - len(my_checks)
 
-        fitness = max([fitness, 0.0001])
+        fitness = max([fitness, 0.001])
         fitness = ((1.0*fitness)*exp.f_scale_factor)**exp.f_power_factor
         self.fitness = fitness
 

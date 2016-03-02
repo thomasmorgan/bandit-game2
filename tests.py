@@ -304,50 +304,105 @@ class TestBandits(object):
                         # get all bandits
                         bandits = Bandit.query.filter_by(network_id=agent.network_id).all()
 
+                        # create a mapping
+                        mapping = range(len(bandits))
+                        for m in range(len(bandits)):
+                            mapping[m] = random.sample(range(1, exp.n_options + 1), exp.n_options)
+
                         # play all trials
                         for trial in range(exp.n_trials):
+
                             # pick a bandit
                             bandit = random.sample(bandits, 1)[0]
                             bandit_id = bandit.bandit_id
+
+                            # probabilistically remap bandits
+                            for m in range(len(bandits)):
+                                if random.random() < 0.4:
+                                    mapping[m] = random.sample(range(1, exp.n_options + 1), exp.n_options)
 
                             # do they remember it?
                             if memory > 0 and bandit_id in bandit_memory[-memory:]:
                                 remember_bandit = "true"
                             else:
                                 remember_bandit = "false"
+                            # print("remember bandit: {}".format(remember_bandit))
 
                             # if they dont, sample, then choose
                             if remember_bandit == "false":
                                 # which arms do they pull?
                                 vals = random.sample(range(1, exp.n_options + 1), curiosity)
+
                                 # pull them!
+                                found_treasure = False
                                 for val in vals:
-                                    pull = Pull(origin=agent, contents=val)
+                                    # print("checking!")
+                                    pull = Pull(origin=agent, contents=mapping[bandit_id][val-1])
                                     pull.check = "true"
                                     pull.bandit_id = bandit_id
                                     pull.remembered = remember_bandit
                                     pull.trial = trial
-                                if int(bandit.treasure_tile) in vals:
-                                    # if you found the treasure, choose it!
-                                    decision = bandit.treasure_tile
-                                else:
+                                    pull.tile = val
+                                    # if you pull the right one stop pulling now
+                                    if mapping[bandit_id][val-1] == bandit.good_arm:
+                                        decision = val
+                                        found_treasure = True
+                                        break
+                                if not found_treasure:
                                     # otherwise pick a random other arm
                                     decision = random.sample([v for v in range(1, exp.n_options+1) if v not in vals], 1)[0]
 
-                            # if they do remember it read the memory and choose
+                            # if they do remember it
                             else:
-                                for k in range(len(bandit_memory)):
-                                    if bandit_memory[k] == bandit_id:
-                                        decision = decision_memory[k]
+
+                                # what decision can they remember making
+                                remembered_decision = [d for b, d in zip(bandit_memory[-memory:], decision_memory[-memory:]) if b == bandit_id][-1]
                                 # add a chance to misremember
-                                if random.random() < 0.3:
-                                    decision = random.randint(1, exp.n_options+1)
+                                if random.random() < 0:
+                                    remembered_decision = random.sample([v for v in range(1, exp.n_options+1)], 1)[0]
+
+                                smart_agents = True
+
+                                if smart_agents:
+
+                                    # test this decision
+                                    pull = Pull(origin=agent, contents=mapping[bandit_id][remembered_decision-1])
+                                    pull.check = "true"
+                                    pull.bandit_id = bandit_id
+                                    pull.remembered = remember_bandit
+                                    pull.trial = trial
+                                    pull.tile = remembered_decision
+
+                                    # if this is right commit to it
+                                    if mapping[bandit_id][remembered_decision-1] == bandit.good_arm:
+                                        decision = remembered_decision
+                                    # if it isnt pull some more arms
+                                    else:
+                                        vals = random.sample([v for v in range(1, exp.n_options+1) if v != remembered_decision], (curiosity-1))
+                                        found_treasure = False
+                                        for val in vals:
+                                            pull = Pull(origin=agent, contents=mapping[bandit_id][val-1])
+                                            pull.check = "true"
+                                            pull.bandit_id = bandit_id
+                                            pull.remembered = remember_bandit
+                                            pull.trial = trial
+                                            pull.tile = val
+                                            if mapping[bandit_id][val-1] == bandit.good_arm:
+                                                decision = val
+                                                found_treasure = True
+                                                break
+                                        if not found_treasure:
+                                            decision = random.sample([v for v in range(1, exp.n_options+1) if v not in vals and v != remembered_decision], 1)[0]
+                                else:
+                                    decision = remembered_decision
+
                             # now commit that decision
-                            pull = Pull(origin=agent, contents=decision)
+                            pull = Pull(origin=agent, contents=mapping[bandit_id][decision-1])
                             pull.check = "false"
                             pull.bandit_id = bandit_id
                             pull.remembered = remember_bandit
                             pull.trial = trial
+                            pull.tile = decision
                             bandit_memory.append(bandit_id)
                             decision_memory.append(decision)
                         self.db.commit()
@@ -489,10 +544,11 @@ class TestBandits(object):
                         if pull.check == "true":
                             assert len([pp for pp in pulls if pp.trial == pull.trial and pp.check == "false"]) == 1
                         else:
-                            if pull.remembered == "true":
-                                assert len([pp for pp in pulls if pp.trial == pull.trial and pp.check == "true"]) == 0
+                            if smart_agents:
+                                assert len([pp for pp in pulls if pp.trial == pull.trial and pp.check == "true"]) > 0
                             else:
-                                assert len([pp for pp in pulls if pp.trial == pull.trial and pp.check == "true"]) == curiosity
+                                assert len([pp for pp in pulls if pp.trial == pull.trial and pp.check == "true"]) >= 0
+                            assert len([pp for pp in pulls if pp.trial == pull.trial and pp.check == "true"]) <= curiosity
 
                     received_infos = agent.received_infos()
                     assert len(received_infos) == 2
