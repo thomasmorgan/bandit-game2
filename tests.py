@@ -358,10 +358,10 @@ class TestBandits(object):
                                 # what decision can they remember making
                                 remembered_decision = [d for b, d in zip(bandit_memory[-memory:], decision_memory[-memory:]) if b == bandit_id][-1]
                                 # add a chance to misremember
-                                if random.random() < 0:
+                                if random.random() < 0.2:
                                     remembered_decision = random.sample([v for v in range(1, exp.n_options+1)], 1)[0]
 
-                                smart_agents = True
+                                smart_agents = False
 
                                 if smart_agents:
 

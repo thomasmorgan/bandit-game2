@@ -30,8 +30,8 @@ class BanditGame(Experiment):
         self.experiment_repeats = 1
         self.practice_repeats = 0
         self.agent = BanditAgent
-        self.generation_size = 40
-        self.generations = 40
+        self.generation_size = 2
+        self.generations = 2
         self.network = lambda: BanditGenerational(generations=self.generations,
                                                   generation_size=self.generation_size,
                                                   initial_source=True)
@@ -47,7 +47,7 @@ class BanditGame(Experiment):
 
         """ BanditGame parameters """
         # how many bandits each node visits
-        self.n_trials = 20
+        self.n_trials = 40
 
         # how many bandits there are
         self.n_bandits = 4
@@ -62,7 +62,9 @@ class BanditGame(Experiment):
         self.payoff = 10
 
         # how much each unit of memory costs fitness
-        self.memory_cost = 2
+        self.memory_cost = self.n_trials*self.payoff/self.n_options*0.1
+        self.curiosity_cost = self.n_trials*self.payoff/self.n_options*0.1
+        self.pull_cost = self.payoff/self.n_options
 
         # fitness affecting parameters
         self.f_min = 10
@@ -431,10 +433,11 @@ class BanditAgent(Agent):
 
         payoff = exp.payoff
         memory = int(self.infos(type=MemoryGene)[0].contents)
+        curiosity = int(self.infos(type=CuriosityGene)[0].contents)
 
         correct_decisions = [d for d in my_decisions if [b for b in bandits if b.bandit_id == d.bandit_id][0].good_arm == int(d.contents)]
 
-        fitness = exp.f_min + len(correct_decisions)*payoff - memory*exp.memory_cost - len(my_checks)
+        fitness = exp.f_min + len(correct_decisions)*payoff - memory*exp.memory_cost - curiosity*exp.curiosity_cost - len(my_checks)*exp.pull_cost
 
         fitness = max([fitness, 0.001])
         fitness = ((1.0*fitness)*exp.f_scale_factor)**exp.f_power_factor

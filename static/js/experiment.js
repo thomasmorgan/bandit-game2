@@ -7,6 +7,7 @@ var number_of_rounds;
 var available_bandit_names = ["Afghanistan", "Albania", "Argentina", "Australia", "Austria", "Bangladesh", "Belgium", "Botswana", "Brasil", "Bulgaria", "Burundi", "Canada", "Chad", "Chile", "China", "Colombia", "Costa Rica", "Croatia", "Denmark", "Ecuador", "Egypt", "England", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Germany", "Ghana", "Greece", "Greenland", "Guatemala", "Holland", "India", "Iran", "Ireland", "Italy", "Japan", "Laos", "Libya", "Madagascar", "Mali", "Mexico", "Mongolia", "Morocco", "Mozambique", "Myanmar", "Nepal", "New Zealand", "Nigeria", "Norway", "Pakistan", "Papua New Guinea", "Poland", "Portugal", "Romania", "Russia", "Scotland", "Senegal", "Sierra Leone", "South Korea", "Spain", "Sri Lanka", "Sweden", "Thailand", "The United States", "Tonga", "Tunisia", "Turkey", "Turkmenistan", "Ukraine", "Wales", "Yemen"];
 var bandit_names;
 var lock = false;
+var p_change = 0.4;
 bandit_mapping = [];
 
 // get all the details to correctly present the trial number bar
@@ -124,9 +125,10 @@ get_num_arms = function() {
                 bandit_mapping[current_bandit] = new_mapping(num_arms);
             } else {
                 trials_since_last_visit = my_memory - bandit_memory.slice(-my_memory).lastIndexOf(current_bandit);
-                p_change = Math.pow(0.25, trials_since_last_visit);
+            }
+            for (i = 0; i < num_bandits; i++) {
                 if (Math.random() < p_change) {
-                    bandit_mapping[current_bandit] = new_mapping(num_arms);
+                    bandit_mapping[i] = new_mapping(num_arms);
                 }
             }
             get_good_arm();
