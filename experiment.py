@@ -35,7 +35,7 @@ class BanditGame(Experiment):
         self.network = lambda: BanditGenerational(generations=self.generations,
                                                   generation_size=self.generation_size,
                                                   initial_source=True)
-        self.bonus_payment = 0.5
+        self.bonus_payment = 0.6
         self.initial_recruitment_size = self.generation_size
         self.instruction_pages = ["instructions/instruct-1.html",
                                   "instructions/instruct-2.html",
