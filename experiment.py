@@ -30,8 +30,8 @@ class BanditGame(Experiment):
         self.experiment_repeats = 1
         self.practice_repeats = 0
         self.agent = BanditAgent
-        self.generation_size = 2
-        self.generations = 2
+        self.generation_size = 40
+        self.generations = 40
         self.network = lambda: BanditGenerational(generations=self.generations,
                                                   generation_size=self.generation_size,
                                                   initial_source=True)

@@ -361,7 +361,7 @@ class TestBandits(object):
                                 if random.random() < 0.2:
                                     remembered_decision = random.sample([v for v in range(1, exp.n_options+1)], 1)[0]
 
-                                smart_agents = False
+                                smart_agents = True
 
                                 if smart_agents:
 
