@@ -39,7 +39,7 @@ return_to_psiturk_server = function() {
         success: function (resp) {
             console.log(resp.address);
             allow_exit();
-            window.location = resp.address + "?uniqueId=" + uniqueId;
+            window.location = resp.address + "?hit_id=" + hit_id + "&assignment_id=" + assignment_id + "&worker_id=" + worker_id + "&mode=" + mode;
         },
         error: function (err) {
             console.log(err);
