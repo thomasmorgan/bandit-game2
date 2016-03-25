@@ -26,7 +26,7 @@ get_num_trials = function() {
 // make a new node
 create_agent = function() {
     reqwest({
-        url: "/node/" + uniqueId,
+        url: "/node/" + worker_id.concat(":").concat(assignment_id),
         method: 'post',
         type: 'json',
         success: function (resp) {
