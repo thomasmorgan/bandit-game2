@@ -2,19 +2,16 @@
 
 from wallace.experiments import Experiment
 from wallace.nodes import Agent, Source
-from wallace.models import Info, Network, Vector
+from wallace.models import Info, Network, Vector, Participant
 from wallace.networks import DiscreteGenerational
 from wallace.information import Gene
-from psiturk.models import Participant
 import random
 from json import dumps
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.expression import cast
 from sqlalchemy import Integer
-from flask import Blueprint, Response, request, render_template
-import os
+from flask import Blueprint, Response
 from psiturk.psiturk_config import PsiturkConfig
-import requests
 from wallace import db
 config = PsiturkConfig()
 
@@ -26,28 +23,22 @@ class BanditGame(Experiment):
 
         """ Wallace parameters """
         self.task = "The Bandit Game"
-        self.verbose = True
+        self.verbose = False
         self.experiment_repeats = 1
         self.practice_repeats = 0
         self.agent = BanditAgent
-        self.generation_size = 40
-        self.generations = 40
+        self.generation_size = 5
+        self.generations = 5
         self.network = lambda: BanditGenerational(generations=self.generations,
                                                   generation_size=self.generation_size,
                                                   initial_source=True)
         self.bonus_payment = 0.6
         self.initial_recruitment_size = self.generation_size
-        # self.instruction_pages = ["instructions/instruct-1.html",
-        #                           "instructions/instruct-2.html",
-        #                           "instructions/instruct-3.html",
-        #                           "instructions/instruct-4.html",
-        #                           "instructions/instruct-5.html"]
-        # self.debrief_pages = ["debriefing/debrief-1.html"]
         self.known_classes["Pull"] = Pull
 
         """ BanditGame parameters """
         # how many bandits each node visits
-        self.n_trials = 40
+        self.n_trials = 4
 
         # how many bandits there are
         self.n_bandits = 4
@@ -500,223 +491,3 @@ def good_arm(network_id, bandit_id):
     bandit = Bandit.query.filter_by(network_id=network_id, bandit_id=bandit_id).one()
     data = {"status": "success", "good_arm": bandit.good_arm}
     return Response(dumps(data), status=200, mimetype='application/json')
-
-
-@extra_routes.route("/consent", methods=["GET"])
-def get_consent():
-    return return_page('consent.html', request)
-
-
-@extra_routes.route("/instructions/<int:page>", methods=["GET"])
-def get_instructions(page):
-    exp = BanditGame(db.session)
-    return return_page(exp.instruction_pages[page-1], request)
-
-
-@extra_routes.route("/debrief/<int:page>", methods=["GET"])
-def get_debrief(page):
-    exp = BanditGame(db.session)
-    return return_page(exp.debrief_pages[page-1], request)
-
-
-@extra_routes.route("/stage", methods=["GET"])
-def get_stage():
-    return return_page('stage.html', request)
-
-
-@extra_routes.route("/participant/<worker_id>/<hit_id>/<assignment_id>", methods=["POST"])
-def create_participant(worker_id, hit_id, assignment_id):
-    exp = BanditGame(db.session)
-
-    parts = Participant.query.filter_by(workerid=worker_id).all()
-    if parts:
-        print "participant already exists!"
-        return Response(status=200)
-
-    p = Participant(workerid=worker_id, assignmentid=assignment_id, hitid=hit_id)
-    exp.save(p)
-    return Response(status=200)
-
-
-@extra_routes.route("/ad_address/<mode>/<hit_id>", methods=["GET"])
-def ad_address(mode, hit_id):
-
-    if mode == "debug":
-        address = '/complete'
-    elif mode in ["sandbox", "live"]:
-        CONFIG = PsiturkConfig()
-        CONFIG.load_config()
-        username = os.getenv('psiturk_access_key_id', CONFIG.get("psiTurk Access", "psiturk_access_key_id"))
-        password = os.getenv('psiturk_secret_access_id', CONFIG.get("psiTurk Access", "psiturk_secret_access_id"))
-        try:
-            req = requests.get('https://api.psiturk.org/api/ad/lookup/' + hit_id,
-                               auth=(username, password))
-        except:
-            raise ValueError('api_server_not_reachable')
-        else:
-            if req.status_code == 200:
-                hit_address = req.json()['ad_id']
-            else:
-                raise ValueError("something here")
-        if mode == "sandbox":
-            address = 'https://sandbox.ad.psiturk.org/complete/' + str(hit_address)
-        elif mode == "live":
-            address = 'https://ad.psiturk.org/complete/' + str(hit_address)
-    else:
-        raise ValueError("Unknown mode: {}".format(mode))
-    return Response(dumps({"address": address}), status=200)
-
-
-def return_page(page, request):
-    exp = BanditGame(db.session)
-    try:
-        hit_id = request.args['hit_id']
-        assignment_id = request.args['assignment_id']
-        worker_id = request.args['worker_id']
-        mode = request.args['mode']
-        return render_template(
-            page,
-            hit_id=hit_id,
-            assignment_id=assignment_id,
-            worker_id=worker_id,
-            mode=mode
-        )
-    except:
-        return exp.error_page(error_type="{} AWS args missing".format(page))
-
-
-def request_parameter(request, parameter, parameter_type=None, default=None):
-    """ Get a parameter from a request
-
-    The request object itself must be passed.
-    parameter is the name of the parameter you are looking for
-    parameter_type is the type the parameter should have
-    default is the value the parameter takes if it has not been passed
-
-    If the parameter is not found and no default is specified,
-    or if the parameter is found but is of the wrong type
-    then a Response object is returned"""
-
-    exp = BanditGame(db.session)
-
-    # get the parameter
-    try:
-        value = request.values[parameter]
-    except KeyError:
-        # if it isnt found use the default, or return an error Response
-        if default is not None:
-            return default
-        else:
-            msg = "{} {} request, {} not specified".format(request.url, request.method, parameter)
-            exp.log("Error: {}".format(msg))
-            data = {
-                "status": "error",
-                "html": error_page(error_type=msg)
-            }
-            return Response(
-                dumps(data),
-                status=400,
-                mimetype='application/json')
-
-    # check the parameter type
-    if parameter_type is None:
-        # if no parameter_type is required, return the parameter as is
-        return value
-    elif parameter_type == int:
-        # if int is required, convert to an int
-        try:
-            value = int(value)
-            return value
-        except ValueError:
-            msg = "{} {} request, non-numeric {}: {}".format(request.url, request.method, parameter, value)
-            exp.log("Error: {}".format(msg))
-            data = {
-                "status": "error",
-                "html": error_page(error_type=msg)
-            }
-            return Response(
-                dumps(data),
-                status=400,
-                mimetype='application/json')
-    elif parameter_type == "known_class":
-        # if its a known class check against the known classes
-        try:
-            value = exp.known_classes[value]
-            return value
-        except KeyError:
-            msg = "{} {} request, unknown_class: {} for parameter {}".format(request.url, request.method, value, parameter)
-            exp.log("Error: {}".format(msg))
-            data = {
-                "status": "error",
-                "html": error_page(error_type=msg)
-            }
-            return Response(
-                dumps(data),
-                status=400,
-                mimetype='application/json')
-    elif parameter_type == bool:
-        # if its a boolean, convert to a boolean
-        if value in ["True", "False"]:
-            return value == "True"
-        else:
-            msg = "{} {} request, non-boolean {}: {}".format(request.url, request.method, parameter, value)
-            exp.log("Error: {}".format(msg))
-            data = {
-                "status": "error",
-                "html": error_page(error_type=msg)
-            }
-            return Response(
-                dumps(data),
-                status=400,
-                mimetype='application/json')
-    else:
-        msg = "/{} {} request, unknown parameter type: {} for parameter {}".format(request.url, request.method, parameter_type, parameter)
-        exp.log("Error: {}".format(msg))
-        data = {
-            "status": "error",
-            "html": error_page(error_type=msg)
-        }
-        return Response(
-            dumps(data),
-            status=400,
-            mimetype='application/json')
-
-
-def error_page(participant=None, error_text=None, compensate=True,
-               error_type="default"):
-    """Render HTML for error page."""
-    if error_text is None:
-
-        error_text = """There has been an error and so you are unable to
-        continue, sorry! If possible, please return the assignment so someone
-        else can work on it."""
-
-        if compensate:
-            error_text += """Please use the information below to contact us
-            about compensation"""
-
-    if participant is not None:
-        hit_id = participant.hitid,
-        assignment_id = participant.assignmentid,
-        worker_id = participant.workerid
-    else:
-        hit_id = 'unknown'
-        assignment_id = 'unknown'
-        worker_id = 'unknown'
-
-    return render_template(
-        'error_wallace.html',
-        error_text=error_text,
-        compensate=compensate,
-        contact_address=config.get(
-            'HIT Configuration', 'contact_email_on_error'),
-        error_type=error_type,
-        hit_id=hit_id,
-        assignment_id=assignment_id,
-        worker_id=worker_id
-    )
-
-
-def date_handler(obj):
-    """Serialize dates."""
-    return obj.isoformat() if hasattr(obj, 'isoformat') else obj
