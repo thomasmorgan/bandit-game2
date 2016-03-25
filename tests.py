@@ -198,18 +198,20 @@ class TestBandits(object):
     else:
         # do offline testing
 
-        def setup(self):
-            self.db = db.init_db(drop_all=True)
+        # def setup(self):
+        #     self.db = db.init_db(drop_all=True)
 
-        def teardown(self):
-            self.db.rollback()
-            self.db.close()
+        # def teardown(self):
+        #     self.db.rollback()
+        #     self.db.close()
 
-        def add(self, *args):
-            self.db.add_all(args)
-            self.db.commit()
+        # def add(self, *args):
+        #     self.db.add_all(args)
+        #     self.db.commit()
 
         def test_run_bandit(self):
+
+            self.db = db.init_db(drop_all=True)
 
             """
             SIMULATE THE BANDIT GAME
@@ -261,11 +263,10 @@ class TestBandits(object):
                 # generate a new participant
                 worker_id = str(random.random())
                 assignment_id = str(random.random())
-                from psiturk.models import Participant
-                p = Participant(workerid=worker_id, assignmentid=assignment_id, hitid=hit_id)
+                p = models.Participant(worker_id=worker_id, assignment_id=assignment_id, hit_id=hit_id)
                 self.db.add(p)
                 self.db.commit()
-                p_id = p.uniqueid
+                p_id = p.unique_id
                 p_ids.append(p_id)
                 p_start_time = timenow()
 
@@ -424,14 +425,14 @@ class TestBandits(object):
                     participant_nodes = models.Node.query\
                         .filter_by(participant_id=p_id, failed=False)\
                         .all()
-                    p.status = 102
+                    p.status = "did_not_attend"
 
                     for node in participant_nodes:
                         node.fail()
 
                     self.db.commit()
                 else:
-                    p.status = 101
+                    p.status = "approved"
                     self.db.commit()
                     exp.submission_successful(participant=p)
                     self.db.commit()
