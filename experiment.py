@@ -112,7 +112,7 @@ class BanditGame(Experiment):
 
         # get the necessary data
         networks = Network.query.all()
-        nodes = BanditAgent.query.filter_by(participant_id=participant.uniqueid).all()
+        nodes = BanditAgent.query.filter_by(participant_id=participant.unique_id).all()
         node_ids = [n.id for n in nodes]
         genes = Gene.query.filter(Gene.origin_id.in_(node_ids)).all()
         incoming_vectors = Vector.query.filter(Vector.destination_id.in_(node_ids)).all()
@@ -171,7 +171,7 @@ class BanditGame(Experiment):
         networks_ids = [n.id for n in networks if n.role != "practice"]
 
         # query all nodes, bandits, pulls and Genes
-        nodes = BanditAgent.query.filter_by(participant_id=participant.uniqueid).all()
+        nodes = BanditAgent.query.filter_by(participant_id=participant.unique_id).all()
         nodes = [n for n in nodes if n.network_id in networks_ids]
         bandits = Bandit.query.all()
         node_ids = [n.id for n in nodes]
@@ -208,7 +208,7 @@ class BanditGame(Experiment):
 
     def attention_check(self, participant):
         bandits = Bandit.query.all()
-        nodes = BanditAgent.query.filter_by(participant_id=participant.uniqueid).all()
+        nodes = BanditAgent.query.filter_by(participant_id=participant.unique_id).all()
         pulls = []
         for node in nodes:
             pulls.extend(node.infos(type=Pull))
