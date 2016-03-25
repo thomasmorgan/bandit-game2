@@ -44,7 +44,7 @@ create_agent = function() {
                 $('body').html(err_response.html);
             } else {
                 allow_exit();
-                window.location = "/debrief/1?hit_id=" + hit_id + "&assignment_id=" + assignment_id + "&worker_id=" + worker_id + "&mode=" + mode;
+                window.location = "/debriefing/debrief-1?hit_id=" + hit_id + "&assignment_id=" + assignment_id + "&worker_id=" + worker_id + "&mode=" + mode;
             }
         }
     });
