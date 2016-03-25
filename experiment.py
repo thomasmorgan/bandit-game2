@@ -37,12 +37,12 @@ class BanditGame(Experiment):
                                                   initial_source=True)
         self.bonus_payment = 0.6
         self.initial_recruitment_size = self.generation_size
-        self.instruction_pages = ["instructions/instruct-1.html",
-                                  "instructions/instruct-2.html",
-                                  "instructions/instruct-3.html",
-                                  "instructions/instruct-4.html",
-                                  "instructions/instruct-5.html"]
-        self.debrief_pages = ["debriefing/debrief-1.html"]
+        # self.instruction_pages = ["instructions/instruct-1.html",
+        #                           "instructions/instruct-2.html",
+        #                           "instructions/instruct-3.html",
+        #                           "instructions/instruct-4.html",
+        #                           "instructions/instruct-5.html"]
+        # self.debrief_pages = ["debriefing/debrief-1.html"]
         self.known_classes["Pull"] = Pull
 
         """ BanditGame parameters """
