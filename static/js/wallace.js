@@ -1,3 +1,23 @@
+// load essential variables
+var getUrlParameter = function getUrlParameter(sParam) {
+    var sPageURL = decodeURIComponent(window.location.search.substring(1)),
+        sURLVariables = sPageURL.split('&'),
+        sParameterName,
+        i;
+
+    for (i = 0; i < sURLVariables.length; i++) {
+        sParameterName = sURLVariables[i].split('=');
+
+        if (sParameterName[0] === sParam) {
+            return sParameterName[1] === undefined ? true : sParameterName[1];
+        }
+    }
+};
+hit_id = getUrlParameter('hit_id');
+worker_id = getUrlParameter('worker_id');
+assignment_id = getUrlParameter('assignment_id');
+mode = getUrlParameter('mode');
+
 // stop people leaving the page
 window.onbeforeunload = function() {
     return "Warning: the study is not yet finished. " +
