@@ -1,10 +1,10 @@
 """ The Bandit Game! """
 
-from wallace.experiments import Experiment
-from wallace.nodes import Agent, Source
-from wallace.models import Info, Network, Vector, Participant
-from wallace.networks import DiscreteGenerational
-from wallace.information import Gene
+from dallinger.experiments import Experiment
+from dallinger.nodes import Agent, Source
+from dallinger.models import Info, Network, Vector, Participant
+from dallinger.networks import DiscreteGenerational
+from dallinger.information import Gene
 import random
 from json import dumps
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -12,61 +12,39 @@ from sqlalchemy.sql.expression import cast
 from sqlalchemy import Integer
 from flask import Blueprint, Response
 from psiturk.psiturk_config import PsiturkConfig
-from wallace import db
 config = PsiturkConfig()
+
+
+def extra_parameters():
+    config.register('generation_size', int)
+    config.register('generations', int)
+    config.register('bonus_payment', float)
+    config.register('n_trials', int)
+    config.register('n_bandits', int)
+    config.register('n_options', int)
+    config.register('n_pulls', int)
+    config.register('payoff', int)
+    config.register('f_min', int)
+    config.register('f_scale_factor', float)
+    config.register('f_power_factor', int)
+    config.register('allow_memory', bool)
+    config.register('allow_curiosity', bool)
+    config.register('seed_memory', int)
+    config.register('seed_curiosity', int)
 
 
 class BanditGame(Experiment):
 
     def __init__(self, session):
         super(BanditGame, self).__init__(session)
-
-        """ Wallace parameters """
         self.task = "The Bandit Game"
         self.verbose = False
         self.experiment_repeats = 1
-        self.practice_repeats = 0
-        self.agent = BanditAgent
-        self.generation_size = 5
-        self.generations = 5
-        self.network = lambda: BanditGenerational(generations=self.generations,
-                                                  generation_size=self.generation_size,
-                                                  initial_source=True)
-        self.bonus_payment = 0.6
-        self.initial_recruitment_size = self.generation_size
+        self.initial_recruitment_size = config.get("generation_size")
         self.known_classes["Pull"] = Pull
-
-        """ BanditGame parameters """
-        # how many bandits each node visits
-        self.n_trials = 4
-
-        # how many bandits there are
-        self.n_bandits = 4
-
-        # how many arms each bandit has
-        self.n_options = 10
-
-        # how many times you can pull the arms
-        self.n_pulls = 10
-
-        # the payoff from getting it right
-        self.payoff = 10
-
-        # how much each unit of memory costs fitness
-        self.memory_cost = self.n_trials*self.payoff/self.n_options*0.1
-        self.curiosity_cost = self.n_trials*self.payoff/self.n_options*0.1
-        self.pull_cost = self.payoff/self.n_options
-
-        # fitness affecting parameters
-        self.f_min = 10
-        self.f_scale_factor = 0.01
-        self.f_power_factor = 2
-
-        # genetic parameters
-        self.allow_memory = True
-        self.allow_curiosity = True
-        self.seed_memory = 1
-        self.seed_curiosity = 1
+        self.n_trials = config.get('n_trials')
+        self.n_bandits = config.get('n_bandits')
+        self.num_arms = config.get('n_options')
 
         if not self.networks():
             self.setup()
@@ -80,24 +58,25 @@ class BanditGame(Experiment):
             for bandit in range(self.n_bandits):
                 b = Bandit(network=net)
                 b.bandit_id = bandit
-                b.num_arms = self.n_options
-                b.good_arm = int(random.random()*self.n_options) + 1
+                b.num_arms = config.get("n_options")
+                b.good_arm = int(random.random()*config.get("n_options")) + 1
+
+    def create_node(self, participant, network):
+        """Create a node for a participant."""
+        return self.models.BanditAgent(network=network, participant=participant)
+
+    def create_network(self):
+        """Return a new network."""
+        return self.models.BanditGenerational(generations=config.get("generations"),
+                                              generation_size=config.get("generation_size"),
+                                              initial_source=True)
 
     def recruit(self):
-        self.log("running recruit")
-        participants = Participant.query.with_entities(Participant.status).all()
-
-        # if all network are full close recruitment
-        if not self.networks(full=False):
-            self.log("all networks full, closing recruitment")
-            self.recruiter().close_recruitment()
-        # if a complete generation has finished and no-one is playing, recruit
-        elif (len([p for p in participants if p.status == 101]) % self.generation_size == 0 and
-              not [p for p in participants if p.status < 100]):
+        """Recruit participants if necessary."""
+        num_approved = len(Participant.query.filter_by(status="approved").all())
+        if num_approved % config.get("generation_size") == 0 and num_approved < config.get("generations")*config.get("generation_size"):
             self.log("generation finished, recruiting another")
-            self.recruiter().recruit_participants(n=self.generation_size)
-        else:
-            self.log("generation not finished, not recruiting")
+            self.recruiter().recruit_participants(n=config.get("generation_size"))
 
     def data_check(self, participant):
 
@@ -147,7 +126,6 @@ class BanditGame(Experiment):
             for node in nodes:
                 assert isinstance(node.fitness, float)
 
-            self.log("Data check passed")
             return True
         except:
             import traceback
@@ -180,14 +158,14 @@ class BanditGame(Experiment):
 
                 # if they get it right score = potential score
                 if right_answer == int(decision.contents):
-                    score = self.n_pulls - num_checks
+                    score = config.get('n_pulls') - num_checks
                 else:
                     score = 0 - num_checks
 
                 # save this info the the decision and update the running totals
                 total_score += score
 
-        total_trials = self.n_trials * self.experiment_repeats
+        total_trials = config.get('n_trials') * self.experiment_repeats
 
         bonus = ((total_score/(1.0*total_trials))-1)/5.0
 
@@ -242,14 +220,13 @@ class GeneticSource(Source):
         return Gene
 
     def create_genes(self):
-        exp = BanditGame(db.session)
-        if exp.allow_memory:
-            MemoryGene(origin=self, contents=exp.seed_memory)
+        if config.get('allow_memory'):
+            MemoryGene(origin=self, contents=config.get('seed_memory'))
         else:
             MemoryGene(origin=self, contents=0)
 
-        if exp.allow_curiosity:
-            CuriosityGene(origin=self, contents=exp.seed_curiosity)
+        if config.get('allow_curiosity'):
+            CuriosityGene(origin=self, contents=config.get('seed_curiosity'))
         else:
             CuriosityGene(origin=self, contents=1)
 
@@ -302,8 +279,7 @@ class MemoryGene(Gene):
     __mapper_args__ = {"polymorphic_identity": "memory_gene"}
 
     def _mutated_contents(self):
-        exp = BanditGame(db.session)
-        if exp.allow_memory:
+        if config.get('allow_memory'):
             if random.random() < 0.5:
                 return max([int(self.contents) + random.sample([-1, 1], 1)[0], 0])
             else:
@@ -318,8 +294,7 @@ class CuriosityGene(Gene):
     __mapper_args__ = {"polymorphic_identity": "curiosity_gene"}
 
     def _mutated_contents(self):
-        exp = BanditGame(db.session)
-        if exp.allow_curiosity:
+        if config.get('allow_curiosity'):
             if random.random() < 0.5:
                 return min([max([int(self.contents) + random.sample([-1, 1], 1)[0], 1]), 10])
             else:
@@ -416,22 +391,25 @@ class BanditAgent(Agent):
                 self.mutate(info_in=info)
 
     def calculate_fitness(self):
-        exp = BanditGame(db.session)
-
         my_decisions = Pull.query.filter_by(origin_id=self.id, check="false").all()
         my_checks = Pull.query.filter_by(origin_id=self.id, check="true").all()
         bandits = Bandit.query.filter_by(network_id=self.network_id).all()
 
-        payoff = exp.payoff
+        payoff = config.get('payoff')
         memory = int(self.infos(type=MemoryGene)[0].contents)
         curiosity = int(self.infos(type=CuriosityGene)[0].contents)
 
         correct_decisions = [d for d in my_decisions if [b for b in bandits if b.bandit_id == d.bandit_id][0].good_arm == int(d.contents)]
 
-        fitness = exp.f_min + len(correct_decisions)*payoff - memory*exp.memory_cost - curiosity*exp.curiosity_cost - len(my_checks)*exp.pull_cost
+        # how much each unit of memory costs fitness
+        memory_cost = config.get('n_trials')*config.get('payoff')/config.get('n_options')*0.1
+        curiosity_cost = config.get('n_trials')*config.get('payoff')/config.get('n_options')*0.1
+        pull_cost = config.get('payoff')/config.get('n_options')
+
+        fitness = config.get('f_min') + len(correct_decisions)*payoff - memory*memory_cost - curiosity*curiosity_cost - len(my_checks)*pull_cost
 
         fitness = max([fitness, 0.001])
-        fitness = ((1.0*fitness)*exp.f_scale_factor)**exp.f_power_factor
+        fitness = ((1.0*fitness)*config.get('f_scale_factor'))**config.get('f_power_factor')
         self.fitness = fitness
 
     def _what(self):
@@ -446,43 +424,9 @@ extra_routes = Blueprint(
 
 @extra_routes.route("/node/<int:node_id>/calculate_fitness", methods=["GET"])
 def calculate_fitness(node_id):
-
-    exp = BanditGame(db.session)
     node = BanditAgent.query.get(node_id)
-    if node is None:
-        exp.log("Error: /node/{}/calculate_fitness, node {} does not exist".format(node_id))
-        page = exp.error_page(error_type="/node/calculate_fitness, node does not exist")
-        js = dumps({"status": "error", "html": page})
-        return Response(js, status=400, mimetype='application/json')
-
     node.calculate_fitness()
-    exp.save()
-
     data = {"status": "success"}
-    return Response(dumps(data), status=200, mimetype='application/json')
-
-
-@extra_routes.route("/num_trials", methods=["GET"])
-def get_num_trials():
-    exp = BanditGame(db.session)
-    data = {"status": "success",
-            "experiment_repeats": exp.experiment_repeats,
-            "practice_repeats": exp.practice_repeats,
-            "n_trials": exp.n_trials}
-    return Response(dumps(data), status=200, mimetype='application/json')
-
-
-@extra_routes.route("/num_bandits", methods=["GET"])
-def get_num_bandits():
-    exp = BanditGame(db.session)
-    data = {"status": "success", "num_bandits": exp.n_bandits}
-    return Response(dumps(data), status=200, mimetype='application/json')
-
-
-@extra_routes.route("/num_arms/<int:network_id>/<int:bandit_id>", methods=["GET"])
-def get_num_arms(network_id, bandit_id):
-    bandit = Bandit.query.filter_by(network_id=network_id, bandit_id=bandit_id).one()
-    data = {"status": "success", "num_arms": bandit.num_arms}
     return Response(dumps(data), status=200, mimetype='application/json')
 
 

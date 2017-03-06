@@ -1,7 +1,20 @@
 [Experiment Configuration]
-wallace_version = 0.5
 mode = deploy
 auto_recruit = true
+generation_size = 10
+generations = 10
+n_trials = 10
+n_bandits = 4
+n_options = 10
+n_pulls = 10
+payoff = 10
+f_min = 10
+f_scale_factor = 0.01
+f_power_factor = 2
+allow_memory = True
+allow_curiosity = True
+seed_memory = 1
+seed_curiosity = 1
 
 [HIT Configuration]
 title = Treasure hunt 2
