@@ -42,7 +42,6 @@ create_participant = function() {
             method: "post",
             type: "json",
             success: function(resp) {
-                console.log(resp);
                 participant_id = resp.participant.id;
                 $("#consent").show();
                 $("#refresh-prompt").hide();

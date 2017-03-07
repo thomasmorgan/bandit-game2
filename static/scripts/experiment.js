@@ -7,13 +7,18 @@ var number_of_rounds;
 var available_bandit_names = ["Afghanistan", "Albania", "Argentina", "Australia", "Austria", "Bangladesh", "Belgium", "Botswana", "Brasil", "Bulgaria", "Burundi", "Canada", "Chad", "Chile", "China", "Colombia", "Costa Rica", "Croatia", "Denmark", "Ecuador", "Egypt", "England", "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Germany", "Ghana", "Greece", "Greenland", "Guatemala", "Holland", "India", "Iran", "Ireland", "Italy", "Japan", "Laos", "Libya", "Madagascar", "Mali", "Mexico", "Mongolia", "Morocco", "Mozambique", "Myanmar", "Nepal", "New Zealand", "Nigeria", "Norway", "Pakistan", "Papua New Guinea", "Poland", "Portugal", "Romania", "Russia", "Scotland", "Senegal", "Sierra Leone", "South Korea", "Spain", "Sri Lanka", "Sweden", "Thailand", "The United States", "Tonga", "Tunisia", "Turkey", "Turkmenistan", "Ukraine", "Wales", "Yemen"];
 var bandit_names;
 var lock = false;
-var p_change = 0.4;
 bandit_mapping = [];
+
+$(document).ready(function() {
+    get_num_trials();
+    get_p_move();
+    create_agent();
+});
 
 // get all the details to correctly present the trial number bar
 get_num_trials = function() {
     reqwest({
-        url: "/num_trials",
+        url: "/experiment/n_trials",
         method: 'get',
         success: function (resp) {
             trials_per_network = resp.n_trials;
@@ -23,10 +28,21 @@ get_num_trials = function() {
     });
 };
 
+// get all the details to correctly present the trial number bar
+get_p_move = function() {
+    reqwest({
+        url: "/experiment/p_move",
+        method: 'get',
+        success: function (resp) {
+            p_change = resp.p_move;
+        }
+    });
+};
+
 // make a new node
 create_agent = function() {
     reqwest({
-        url: "/node/" + worker_id.concat(":").concat(assignment_id),
+        url: "/node/" + participant_id,
         method: 'post',
         type: 'json',
         success: function (resp) {
@@ -44,7 +60,7 @@ create_agent = function() {
                 $('body').html(err_response.html);
             } else {
                 allow_exit();
-                window.location = "/debriefing/debrief-1?hit_id=" + hit_id + "&assignment_id=" + assignment_id + "&worker_id=" + worker_id + "&mode=" + mode;
+                go_to_page("questionnaire");
             }
         }
     });
@@ -77,11 +93,11 @@ get_genes = function() {
 // how many bandits are there?
 get_num_bandits = function() {
     reqwest({
-        url: "/num_bandits",
+        url: "/experiment/n_bandits",
         method: 'get',
         type: 'json',
         success: function (resp) {
-            num_bandits = resp.num_bandits;
+            num_bandits = resp.n_bandits;
             bandit_names = [];
             for (i = 0; i < num_bandits; i++) {
                 bandit_names.push("a");
@@ -116,7 +132,7 @@ pick_a_bandit = function () {
 // how many arms does my bandit have?
 get_num_arms = function() {
     reqwest({
-        url: "/num_arms/" + my_network_id + "/" + current_bandit,
+        url: "/experiment/num_arms",
         method: 'get',
         type: 'json',
         success: function (resp) {

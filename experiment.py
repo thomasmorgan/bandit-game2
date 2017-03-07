@@ -26,6 +26,7 @@ def extra_parameters():
     config.register('allow_curiosity', bool)
     config.register('seed_memory', int)
     config.register('seed_curiosity', int)
+    config.register('p_move', float)
 
 
 class BanditGame(Experiment):
@@ -38,10 +39,11 @@ class BanditGame(Experiment):
         self.verbose = False
         self.experiment_repeats = 1
         self.initial_recruitment_size = config.get("generation_size")
-        self.known_classes["Pull"] = self.modelsPull
+        self.known_classes["Pull"] = self.models.Pull
         self.n_trials = config.get('n_trials')
         self.n_bandits = config.get('n_bandits')
         self.num_arms = config.get('n_options')
+        self.p_move = config.get('p_move')
 
         if not self.networks():
             self.setup()

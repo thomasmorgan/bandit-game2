@@ -7,6 +7,7 @@ from dallinger.nodes import Agent, Source
 from dallinger.information import Gene
 from dallinger.config import get_config
 config = get_config()
+import random
 
 
 class BanditGenerational(DiscreteGenerational):
@@ -14,7 +15,7 @@ class BanditGenerational(DiscreteGenerational):
     __mapper_args__ = {"polymorphic_identity": "bandit_generational"}
 
     def add_node(self, node):
-        super(BanditGenerational, self).add_node(newcomer=node)
+        super(BanditGenerational, self).add_node(node=node)
         node.receive()
 
 
