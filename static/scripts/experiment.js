@@ -22,8 +22,14 @@ get_num_trials = function() {
         method: 'get',
         success: function (resp) {
             trials_per_network = resp.n_trials;
-            number_of_rounds = resp.practice_repeats + resp.experiment_repeats;
-            prepare_trial_info_text();
+            reqwest({
+                url: "experiment/experiment_repeats",
+                method: 'get',
+                success: function (resp) {
+                    number_of_rounds = resp.experiment_repeats;
+                    prepare_trial_info_text();
+                }
+            });
         }
     });
 };
