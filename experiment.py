@@ -54,6 +54,7 @@ class BanditGame(Experiment):
     def setup(self):
         super(BanditGame, self).setup()
         for net in self.networks():
+            net.max_size = config.get('generations')*config.get('generation_size') + 1 + config.get('n_bandits')
             source = self.models.GeneticSource(network=net)
             source.create_genes()
             for bandit in range(self.n_bandits):
