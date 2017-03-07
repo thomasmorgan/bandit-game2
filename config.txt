@@ -1,9 +1,9 @@
 [Experiment Configuration]
 mode = deploy
 auto_recruit = true
-generation_size = 1
-generations = 10
-n_trials = 10
+generation_size = 2
+generations = 2
+n_trials = 20
 n_bandits = 4
 n_options = 10
 n_pulls = 10
@@ -22,6 +22,7 @@ title = Treasure hunt 2
 description = Look for treasure in different locations, try to remember where it is
 amt_keywords = Psychology, memory
 base_payment = 0.60
+bonus_payment = 0.60
 lifetime = 24
 duration = 0.3
 us_only = true

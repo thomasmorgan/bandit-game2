@@ -52,11 +52,9 @@ create_agent = function() {
         method: 'post',
         type: 'json',
         success: function (resp) {
-            round_number = round_number + 1;
-            trial_in_this_network = 0;
             my_node_id = resp.node.id;
             my_network_id = resp.node.network_id;
-            bandit_memory = [];
+            prepare_for_new_round();
             get_genes();
         },
         error: function (err) {
@@ -70,6 +68,12 @@ create_agent = function() {
             }
         }
     });
+};
+
+prepare_for_new_round = function() {
+    round_number = round_number + 1;
+    trial_in_this_network = 0;
+    bandit_memory = [];
 };
 
 // what is my memory and curiosity?
@@ -108,34 +112,12 @@ get_num_bandits = function() {
             for (i = 0; i < num_bandits; i++) {
                 bandit_names.push("a");
             }
-            pick_a_bandit();
+            get_num_arms();
         }
     });
 };
 
-// pick my current bandit
-pick_a_bandit = function () {
-    current_bandit = Math.floor(Math.random()*num_bandits);
-
-    if (my_memory > 0) {
-        remember_bandit = $.inArray(current_bandit, bandit_memory.slice(-my_memory)) > -1;
-    } else {
-        remember_bandit = false;
-    }
-
-    if (remember_bandit === false) {
-        index = Math.floor(Math.random()*available_bandit_names.length);
-        bandit_names[current_bandit] = available_bandit_names[index];
-        available_bandit_names.splice(index, 1);
-    }
-
-    current_bandit_name = bandit_names[current_bandit];
-    name_of_image = '<img src="/static/images/locations/' + current_bandit_name + '/flag.png"/>';
-    $("#flag_div").html(name_of_image);
-    get_num_arms();
-};
-
-// how many arms does my bandit have?
+// how many arms do the bandits have?
 get_num_arms = function() {
     reqwest({
         url: "/experiment/num_arms",
@@ -143,23 +125,35 @@ get_num_arms = function() {
         type: 'json',
         success: function (resp) {
             num_arms = resp.num_arms;
-            if (remember_bandit === false) {
-                bandit_mapping[current_bandit] = new_mapping(num_arms);
-            } else {
-                trials_since_last_visit = my_memory - bandit_memory.slice(-my_memory).lastIndexOf(current_bandit);
-            }
-            for (i = 0; i < num_bandits; i++) {
-                if (Math.random() < p_change) {
-                    bandit_mapping[i] = new_mapping(num_arms);
-                }
-            }
-            get_good_arm();
+            pick_a_bandit();
         }
     });
 };
 
-// which is the good arm?
-get_good_arm = function() {
+// pick my current bandit
+pick_a_bandit = function () {
+    // pick a bandit
+    current_bandit = Math.floor(Math.random()*num_bandits);
+
+    // do you remember them
+    if (my_memory > 0) {
+        remember_bandit = $.inArray(current_bandit, bandit_memory.slice(-my_memory)) > -1;
+    } else {
+        remember_bandit = false;
+    }
+
+    // if you don't remember them pick a new country for them and re-map the arms
+    if (remember_bandit === false) {
+        index = Math.floor(Math.random()*available_bandit_names.length);
+        bandit_names[current_bandit] = available_bandit_names[index];
+        available_bandit_names.splice(index, 1);
+    }
+    current_bandit_name = bandit_names[current_bandit];
+    name_of_image = '<img src="/static/images/locations/' + current_bandit_name + '/flag.png"/>';
+    $("#flag_div").html(name_of_image);
+    bandit_mapping[current_bandit] = new_mapping(num_arms);
+
+    // which arm is the bandits good arm?
     reqwest({
         url: "/good_arm/" + my_network_id + "/" + current_bandit,
         method: 'get',
@@ -171,12 +165,19 @@ get_good_arm = function() {
     });
 };
 
-// show the tiles
 prepare_for_trial = function() {
+    // stochastically move the treasure
+    for (i = 0; i < num_bandits; i++) {
+        if (Math.random() < p_change) {
+            bandit_mapping[i] = new_mapping(num_arms);
+        }
+    }
+
+    // update ui
     trial_in_this_network = trial_in_this_network + 1;
     prepare_trial_info_text();
 
-    tiles_checked = 0;
+    
     for (i = 0; i < num_arms; i++) {
         name_of_tile = "#tile_" + (i+1);
         name_of_image = '<img src="/static/images/locations/' + current_bandit_name + '/' + (i+1) + '.png" onClick="check_tile(' + (i+1) + ')"/>';
@@ -185,6 +186,9 @@ prepare_for_trial = function() {
     $("#mini_title").html("<p>You are looking for treasure in <b>" + current_bandit_name + "</b></p>");
     $("#instructions").html("<p><font color='green'><b>You can check " + my_curiosity + " locations</b></font></p>");
     $("#ready_button").prop("disabled", false);
+
+    // reset check counter
+    tiles_checked = 0;
 };
 
 prepare_trial_info_text = function() {
@@ -266,14 +270,16 @@ advance_to_next_trial = function () {
             url: "/node/" + my_node_id + "/calculate_fitness",
             method: "get",
             type: 'json',
+            success: function (resp) {
+                show_warning();
+                create_agent();
+            },
             error: function (err) {
                 console.log(err);
                 err_response = JSON.parse(err.response);
                 $('body').html(err_response.html);
             }
         });
-        show_warning();
-        create_agent();
     } else {
         travel();
         pick_a_bandit();

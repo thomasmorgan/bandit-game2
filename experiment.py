@@ -8,6 +8,8 @@ from json import dumps
 from flask import Blueprint, Response
 from dallinger.config import get_config
 config = get_config()
+from dallinger import db
+session = db.session
 
 
 def extra_parameters():
@@ -168,7 +170,7 @@ class BanditGame(Experiment):
 
         bonus = ((total_score/(1.0*total_trials))-1)/5.0
 
-        bonus = max(min(bonus, 1.0), 0.0)*self.bonus_payment
+        bonus = max(min(bonus, 1.0), 0.0)*config.get('bonus_payment')
 
         bonus = round(bonus, 2)
 
@@ -212,6 +214,7 @@ def calculate_fitness(node_id):
     import models
     node = models.BanditAgent.query.get(node_id)
     node.calculate_fitness()
+    session.commit()
     data = {"status": "success"}
     return Response(dumps(data), status=200, mimetype='application/json')
 
