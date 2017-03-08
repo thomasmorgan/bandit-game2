@@ -29,6 +29,9 @@ def extra_parameters():
     config.register('seed_memory', int)
     config.register('seed_curiosity', int)
     config.register('p_move', float)
+    config.register('pull_cost', float)
+    config.register('memory_cost', float)
+    config.register('curiosity_cost', float)
 
 
 class BanditGame(Experiment):

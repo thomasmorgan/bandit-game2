@@ -16,6 +16,9 @@ allow_curiosity = True
 seed_memory = 1
 seed_curiosity = 1
 p_move = 0.0
+pull_cost = 0.5
+memory_cost = 2
+curiosity_cost = 0.5
 
 [HIT Configuration]
 title = Treasure hunt 2

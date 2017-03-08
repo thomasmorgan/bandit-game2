@@ -209,12 +209,7 @@ class BanditAgent(Agent):
 
         correct_decisions = [d for d in my_decisions if [b for b in bandits if b.bandit_id == d.bandit_id][0].good_arm == int(d.contents)]
 
-        # how much each unit of memory costs fitness
-        memory_cost = config.get('n_trials')*config.get('payoff')/config.get('n_options')*0.1
-        curiosity_cost = config.get('n_trials')*config.get('payoff')/config.get('n_options')*0.1
-        pull_cost = config.get('payoff')/config.get('n_options')
-
-        fitness = config.get('f_min') + len(correct_decisions)*payoff - memory*memory_cost - curiosity*curiosity_cost - len(my_checks)*pull_cost
+        fitness = config.get('f_min') + len(correct_decisions)*payoff - memory*config.get('memory_cost') - curiosity*config.get('curiosity_cost') - len(my_checks)*config.get('pull_cost')
 
         fitness = max([fitness, 0.001])
         fitness = ((1.0*fitness)*config.get('f_scale_factor'))**config.get('f_power_factor')
