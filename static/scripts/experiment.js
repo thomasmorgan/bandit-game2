@@ -147,11 +147,13 @@ pick_a_bandit = function () {
         index = Math.floor(Math.random()*available_bandit_names.length);
         bandit_names[current_bandit] = available_bandit_names[index];
         available_bandit_names.splice(index, 1);
+        bandit_mapping[current_bandit] = new_mapping(num_arms);
     }
+
+    // load the bandits name and image
     current_bandit_name = bandit_names[current_bandit];
     name_of_image = '<img src="/static/images/locations/' + current_bandit_name + '/flag.png"/>';
     $("#flag_div").html(name_of_image);
-    bandit_mapping[current_bandit] = new_mapping(num_arms);
 
     // which arm is the bandits good arm?
     reqwest({
